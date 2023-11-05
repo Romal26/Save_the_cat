@@ -10,11 +10,6 @@ public class SleepRigidbody : MonoBehaviour
 	void Start()
 	{
 		_rb = GetComponent<Rigidbody>();
-	}
-
-	void Update()
-	{
 		_rb.sleepThreshold = -1;
-		_rb.WakeUp();
 	}
 }
