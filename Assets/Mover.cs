@@ -1,53 +1,102 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Xml.Linq;
 using UnityEngine;
 
 public class Mover : MonoBehaviour
 {
 	[SerializeField] private float force;
+	[SerializeField] private float minValue;
+
 	private Rigidbody rb;
+	private int curObj;
+	GameObject[] objects;
+
+	Color startColor;
+	private float startPos = -1;
+
+	private void Start()
+	{
+		objects = GameObject.FindGameObjectsWithTag("log");
+
+		startColor = objects[0].transform.GetComponent<MeshRenderer>().material.color;
+	}
 
 	// код, исполняемый каждый кадр
 	void Update()
 	{
+		if (rb != null && Math.Abs(rb.position.z) > 2)
+		{
+			this.rb = null;
+			curObj = -1;
+			startPos = -1;
+		}
+
+		MoveObject();
 		ChooseObject();
-		if (rb != null)
-			MoveObject();
 	}
 
 	private void MoveObject()
 	{
-		float axis = Input.GetAxis("Vertical");
-		if (axis > 0) // W
+		if (rb == null)
+			return;
+
+		if (startPos == -1 && (Input.GetMouseButton(0) || Input.touchCount != 0))
 		{
-			Vector3 direction = new Vector3(0, 0, axis * force);
-			print(direction);
-			rb.AddForce(direction);
+			startPos = GetPos();
 		}
-		else if (axis < 0) // S
+
+		if (Input.GetMouseButton(0) || Input.touchCount != 0)
 		{
-			Vector3 direction = new Vector3(0, 0, -axis * force);
-			print(direction);
-			rb.AddForce(direction);
+			var delta = startPos - GetPos();
+
+			//if (Math.Abs(delta) > minValue)
+			{
+				rb.velocity = new Vector3(0, 0, force * -delta);
+			}
+
+			startPos = GetPos();
 		}
+	}
+
+	private float GetPos()
+	{
+		return Input.touchSupported ? Input.GetTouch(0).position.y : Input.mousePosition.y;
 	}
 
 	private void ChooseObject()
 	{
-		if (Input.GetMouseButtonDown(0))
+		if (Input.GetMouseButtonDown(0) || (Input.touchCount != 0 && Input.GetTouch(0).phase == TouchPhase.Began))
 		{
+			foreach (var item in objects)
+			{
+				Material mat = item.transform.GetComponent<MeshRenderer>().material;
+				mat.color = startColor;
+			}
+
 			Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
 			bool success = Physics.Raycast(ray, out RaycastHit hit);
+
 			if (success)
 			{
-				Material mat = hit.transform.GetComponent<MeshRenderer>().material;
-				Color color = mat.color;
-				color = Color.Lerp(color, Color.white, 0.5f);
-				mat.color = color;
+				if (hit.transform.tag == "cat")
+					return;
 
-				if (hit.transform.TryGetComponent<Rigidbody>(out Rigidbody rb))
+				Material mat = hit.transform.GetComponent<MeshRenderer>().material;
+				mat.color = Color.Lerp(startColor, Color.white, 0.5f);
+
+				if (hit.transform.TryGetComponent(out Rigidbody rb))
+				{
 					this.rb = rb;
+					curObj = hit.transform.GetInstanceID();
+				}
+				else
+				{
+					this.rb = null;
+					curObj = -1;
+					startPos = -1;
+				}
 			}
 		}
 	}
